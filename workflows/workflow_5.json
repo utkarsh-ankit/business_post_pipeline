@@ -1,0 +1,702 @@
+{
+  "name": "Business Post Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {
+          "systemMessage": "You are a ghostwriter for a senior enterprise AI practitioner. Follow the Brand DNA rules in the prompt exactly. Return ONLY the LinkedIn post text — no preamble, no explanation, no markdown, no quotation marks."
+        }
+      },
+      "id": "d2d0102c-38d0-4140-9159-311728102bab",
+      "name": "Gemini: Draft Post",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2544,
+        1248
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "deda6592-182a-439c-a20b-a2745c262d74",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        2544,
+        1440
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "AvuxrXZcJfalJN27",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#content-approvals",
+          "mode": "name"
+        },
+        "text": "📋 New post ready for approval. Check Gmail for details and approve/reject buttons.",
+        "otherOptions": {}
+      },
+      "id": "b213eb3d-1e42-43a1-a757-fa357cbe205d",
+      "name": "Slack: Approval Card",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        3632,
+        1136
+      ],
+      "webhookId": "80543779-fc27-41b8-a5b8-df407f81932c",
+      "credentials": {
+        "slackApi": {
+          "id": "v3nBJd8lilh7yOvZ",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "0989b9b6-212c-4f0a-ac96-4505574c27cb",
+      "name": "Schedule Trigger1",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        608,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const runId = `run_${Date.now()}`;\nconst runAt = new Date().toISOString();\nconsole.log(`[Pipeline] Starting run: ${runId}`);\nreturn [{ json: { runId, runAt } }];"
+      },
+      "id": "896ff700-05bb-466c-ac93-423423907518",
+      "name": "Init Run1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839135",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "15935881-f283-4cf1-88bd-6a09f95481eb",
+      "name": "Fetch Earnings RSS1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1104,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.nist.gov/news-events/news/rss.xml",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "579ac864-6889-4fe8-8dd8-844fab7483cc",
+      "name": "Fetch Regulatory RSS1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1104,
+        1376
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const err = $input.item.json.error || 'Unknown error';\nconsole.error(`[Pipeline] Earnings feed failed: ${err}`);\nreturn [];"
+      },
+      "id": "3f239ceb-a2f6-4691-90aa-cfe5db37a42a",
+      "name": "Handle Earnings Error1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const err = $input.item.json.error || 'Unknown error';\nconsole.error(`[Pipeline] Regulatory feed failed: ${err}`);\nreturn [];"
+      },
+      "id": "72d798bf-719e-492b-9589-f6f3518c2a2d",
+      "name": "Handle Regulatory Error1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        1568
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse RSS XML and extract article metadata\nconst body = $input.item.json.data || '';\nconst MAX = 1;\n\nconst blocks = (body.match(/<item>(.*?)<\\/item>/gs) || []).slice(0, MAX);\nconst items = [];\n\nfor (const block of blocks) {\n  const title   = (block.match(/<title>(?:<!\\[CDATA\\[)?(.*?)(?:\\]\\]>)?<\\/title>/) || [])[1] || '';\n  const url     = (block.match(/<link>(.*?)<\\/link>/) || [])[1] || '';\n  const desc    = (block.match(/<description>(?:<!\\[CDATA\\[)?(.*?)(?:\\]\\]>)?<\\/description>/) || [])[1] || '';\n  const pubDate = (block.match(/<pubDate>(.*?)<\\/pubDate>/) || [])[1] || '';\n\n  if (title && url) {\n    items.push({ json: {\n      title: title.trim(),\n      url: url.trim(),\n      description: desc.replace(/<[^>]+>/g, '').trim().slice(0, 600),\n      pubDate,\n      sourceType: 'earnings',\n      sourceName: 'CNBC Earnings'\n    }});\n  }\n}\n\nconsole.log(`[Pipeline] Parsed ${items.length} earnings items`);\nreturn items;"
+      },
+      "id": "7e2147d6-fa44-4dc0-8aab-f36d065a0beb",
+      "name": "Parse Earnings Items1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse RSS and keyword-filter for AI relevance\nconst body = $input.item.json.data || '';\nconst MAX = 1;\n\nconst KEYWORDS = [\n  'artificial intelligence', 'AI', 'machine learning',\n  'automation', 'LLM', 'AI governance', 'AI compliance',\n  'AI regulation', 'AI Act', 'cybersecurity'\n];\n\nconst blocks = body.match(/<item>(.*?)<\\/item>/gs) || [];\nconst items = [];\n\nfor (const block of blocks) {\n  if (items.length >= MAX) break;\n\n  const title   = (block.match(/<title>(?:<!\\[CDATA\\[)?(.*?)(?:\\]\\]>)?<\\/title>/) || [])[1] || '';\n  const url     = (block.match(/<link>(.*?)<\\/link>/) || [])[1] || '';\n  const desc    = (block.match(/<description>(?:<!\\[CDATA\\[)?(.*?)(?:\\]\\]>)?<\\/description>/) || [])[1] || '';\n  const pubDate = (block.match(/<pubDate>(.*?)<\\/pubDate>/) || [])[1] || '';\n\n  const combined = (title + ' ' + desc).toLowerCase();\n  const isRelevant = KEYWORDS.some(kw => combined.includes(kw.toLowerCase()));\n\n  if (isRelevant && title && url) {\n    items.push({ json: {\n      title: title.trim(),\n      url: url.trim(),\n      description: desc.replace(/<[^>]+>/g, '').trim().slice(0, 600),\n      pubDate,\n      sourceType: 'regulatory',\n      sourceName: 'NIST'\n    }});\n  }\n}\n\nconsole.log(`[Pipeline] Parsed ${items.length} regulatory items`);\nreturn items;"
+      },
+      "id": "148d0e86-795c-43b1-9b7d-c772870c4341",
+      "name": "Parse Regulatory Items1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        1376
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge streams + generate hash\nfunction simpleHash(str) {\n  let hash = 0;\n  for (let i = 0; i < str.length; i++) {\n    const char = str.charCodeAt(i);\n    hash = ((hash << 5) - hash) + char;\n    hash = hash & hash;\n  }\n  return Math.abs(hash).toString(16).padStart(8, '0');\n}\n\nconst items = $input.all();\nconst result = [];\n\nfor (const item of items) {\n  const { title, url } = item.json;\n  if (!title || !url) continue;\n  const hash = simpleHash(title + url);\n  result.push({ json: { ...item.json, hash } });\n}\n\nconsole.log(`[Pipeline] ${result.length} items ready for memory check`);\nreturn result;"
+      },
+      "id": "590dd83b-1f42-40e0-a952-20f369a34e3a",
+      "name": "Merge and Hash Items1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as duplicate_count, '{{ $json.hash }}' as hash, '{{ $json.title }}' as title, '{{ $json.url }}' as url, '{{ $json.sourceType }}' as source_type, '{{ $json.sourceName }}' as source_name, '{{ $json.description }}' as description FROM pipeline_memory WHERE hash = '{{ $json.hash }}'",
+        "options": {}
+      },
+      "id": "310ed423-3129-451d-a6ac-5edc4eff258c",
+      "name": "Check Memory (Postgres)1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1824,
+        1248
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "AsKIkXNRo9n27gws",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check duplicate count and pass through original data\nconst item = $input.item.json;\nconst count = parseInt(item.duplicate_count || '0');\n\nif (count > 0) {\n  console.log('[Pipeline] Duplicate, skipping: ' + item.title);\n  return [];\n}\n\nconsole.log('[Pipeline] New item: ' + item.title);\nreturn [{ json: {\n  hash: item.hash,\n  title: item.title,\n  url: item.url,\n  sourceType: item.source_type,\n  sourceName: item.source_name,\n  description: item.description\n} }];"
+      },
+      "id": "f0acbe14-d4bd-4ff8-9540-3ff0a7257457",
+      "name": "Filter Duplicates1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Brand DNA config and inject into AI prompt\nconst brandDNA = {\n  voice: 'Direct, sharp, slightly contrarian. Practitioner who has seen things fail.',\n  hook: 'Open with a surprising stat or uncomfortable truth. Never start with I or In todays.',\n  structure: 'Short punchy paragraphs. Max 2 sentences each.',\n  cta: 'End with a quiet open question — not a hard sell.',\n  length: '150-220 words',\n  emoji: 'Maximum 1, only for directional emphasis like arrow down',\n  hashtags: 'Exactly 3, always on the very last line',\n  forbidden: 'leverage, synergy, ecosystem, game-changer, delve, robust, seamless, cutting-edge',\n  rules: [\n    'Always anchor to real data or a named source',\n    'Never make predictions — focus on what the data shows now',\n    'Every paragraph should feel like it is about the reader, not the writer',\n    'If it sounds like a vendor pitch, rewrite it'\n  ]\n};\n\nconst item = $input.item.json;\n\nconst prompt = `You are a ghostwriter for a senior enterprise AI practitioner publishing on LinkedIn.\n\nBRAND DNA — NON-NEGOTIABLE RULES:\nVoice: ${brandDNA.voice}\nHook style: ${brandDNA.hook}\nStructure: ${brandDNA.structure}\nClosing: ${brandDNA.cta}\nLength: ${brandDNA.length}\nEmoji: ${brandDNA.emoji}\nHashtags: ${brandDNA.hashtags}\nForbidden words: ${brandDNA.forbidden}\nRules:\n${brandDNA.rules.map(r => '- ' + r).join('\\n')}\n\nWrite a LinkedIn post based on this ${item.sourceType} update:\nTitle: ${item.title}\nSource: ${item.sourceName}\nSummary: ${item.description}\n\nFind the ONE most surprising or counterintuitive truth in this source and build the post around it.\nReturn ONLY the post text. No preamble. No quotation marks. No markdown.`;\n\nreturn [{ json: { ...item, prompt } }];"
+      },
+      "id": "c29af564-88b5-46c8-a7b9-8518a85fe741",
+      "name": "Inject Brand DNA1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract post text from Gemini and carry forward all item data\nconst output = $input.item.json.output || $input.item.json.text || '';\n\nif (!output.trim()) {\n  console.log('[Pipeline] Gemini returned empty output');\n  return [];\n}\n\n// Get original item data from Inject Brand DNA node\nconst original = $('Inject Brand DNA1').first().json;\n\nconsole.log('[Pipeline] Post drafted — ' + output.trim().split(' ').length + ' words');\n\nreturn [{ json: {\n  hash: original.hash,\n  title: original.title,\n  url: original.url,\n  sourceType: original.sourceType,\n  sourceName: original.sourceName,\n  description: original.description,\n  postText: output.trim()\n} }];"
+      },
+      "id": "702b3d82-84a3-4680-9cb2-e8fed544456e",
+      "name": "Extract Post Text1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2832,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\n\nfunction simpleHash(str) {\n  let hash = 0;\n  for (let i = 0; i < str.length; i++) {\n    const char = str.charCodeAt(i);\n    hash = ((hash << 5) - hash) + char;\n    hash = hash & hash;\n  }\n  return Math.abs(hash).toString(16).padStart(8, '0');\n}\n\nconst token = simpleHash((item.hash || '') + 'dev-secret');\n\nconst approveUrl = `http://localhost:5678/webhook/pipeline-approval?hash=${item.hash}&token=${token}&action=approve`;\nconst rejectUrl  = `http://localhost:5678/webhook/pipeline-approval?hash=${item.hash}&token=${token}&action=reject`;\n\nconst slackBlocks = [\n  { type: 'header', text: { type: 'plain_text', text: '📋 LinkedIn Post — Ready for Review' } },\n  { type: 'section', fields: [\n    { type: 'mrkdwn', text: `*Source:* ${item.sourceName || 'Unknown'}` },\n    { type: 'mrkdwn', text: `*Type:* ${item.sourceType || 'Unknown'}` }\n  ]},\n  { type: 'section', text: { type: 'mrkdwn', text: `*Article:*\\n${item.title || 'Untitled'}` } },\n  { type: 'divider' },\n  { type: 'section', text: { type: 'mrkdwn', text: `*Draft Post:*\\n\\`\\`\\`${(item.postText || 'Generating...').slice(0, 800)}\\`\\`\\`` } },\n  { type: 'divider' },\n  { type: 'actions', elements: [\n    { type: 'button', text: { type: 'plain_text', text: '✅ Approve' }, style: 'primary', url: approveUrl },\n    { type: 'button', text: { type: 'plain_text', text: '❌ Reject' }, style: 'danger', url: rejectUrl }\n  ]},\n  { type: 'context', elements: [{ type: 'mrkdwn', text: `⏱ Expires 48h` }] }\n];\n\nconst gmailHtml = `<html><body style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px\">\n  <h2 style=\"color:#1a1a2e\"> LinkedIn Post — Approval Required</h2>\n  <table style=\"width:100%;border-collapse:collapse;margin-bottom:20px\">\n    <tr><td style=\"padding:8px;background:#f5f5f5;font-weight:bold\">Source</td><td style=\"padding:8px\">${item.sourceName || 'Unknown'}</td></tr>\n    <tr><td style=\"padding:8px;background:#f5f5f5;font-weight:bold\">Type</td><td style=\"padding:8px\">${item.sourceType || 'Unknown'}</td></tr>\n    <tr><td style=\"padding:8px;background:#f5f5f5;font-weight:bold\">Article</td><td style=\"padding:8px\">${item.title || 'Untitled'}</td></tr>\n  </table>\n<h3>Generated Visual</h3>\n  <div style=\"text-align:center;margin-bottom:20px\">\n    <img src=\"${item.imageUrl}\" alt=\"Post Visual\" style=\"max-width:100%;border-radius:8px\" />\n  </div>\n  <h3>Draft Post</h3>\n  <div style=\"background:#f9f9f9;border-left:4px solid #667eea;padding:16px;white-space:pre-wrap;font-size:14px;line-height:1.7\">${item.postText || 'Generating...'}</div>\n  <br/>\n  <div style=\"text-align:center;margin:28px 0\">\n    <a href=\"${approveUrl}\" style=\"background:#28a745;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;margin-right:16px;font-weight:bold;font-size:16px\">✅ Approve</a>\n    <a href=\"${rejectUrl}\" style=\"background:#dc3545;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px\">❌ Reject</a>\n  </div>\n  <p style=\"color:#aaa;font-size:11px;text-align:center\">Expires in 48 hours · business_post_pipeline</p>\n</body></html>`;\n\nreturn [{ json: { ...item, token, approveUrl, rejectUrl, slackBlocks, gmailHtml } }];"
+      },
+      "id": "2d8053aa-d4fe-4265-8a98-10958daa69fc",
+      "name": "Build Approval Notification1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO pipeline_memory (hash, title, url, source_name, source_type, date_fetched, status)\nVALUES ('{{ $json.hash }}', '{{ $json.title }}', '{{ $json.url }}', '{{ $json.sourceName }}', '{{ $json.sourceType }}', NOW(), 'pending_approval')\nON CONFLICT (hash) DO NOTHING;",
+        "options": {}
+      },
+      "id": "b1c65524-868b-4f66-a7fd-783d12a260c2",
+      "name": "Memory: Mark Pending1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3424,
+        1136
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "AsKIkXNRo9n27gws",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "=agentutk@gmail.com",
+        "subject": "=📋 Approve Post: {{ $json.title }}",
+        "message": "={{ $json.gmailHtml }}",
+        "options": {}
+      },
+      "id": "80c79d4b-85a9-4688-b42b-68800df0daa6",
+      "name": "Gmail: Send Preview1",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3424,
+        1360
+      ],
+      "webhookId": "8ec9389c-441f-4caa-97de-84ee9bbc79fa",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "SkHWC8g3dW7UEkZl",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "pipeline-approval",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "58087f86-29ef-4556-847a-dfd0b2fe6f77",
+      "name": "Webhook: Approval Gate1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        1808
+      ],
+      "webhookId": "pipeline-approval-gate"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate HMAC token\nconst { hash, token, action } = $input.item.json.query || {};\n\nif (!hash || !token || !['approve','reject'].includes(action)) {\n  return [{ json: { valid: false, reason: 'Bad parameters' } }];\n}\n\nfunction simpleHash(str) {\n  let h = 0;\n  for (let i = 0; i < str.length; i++) {\n    const char = str.charCodeAt(i);\n    h = ((h << 5) - h) + char;\n    h = h & h;\n  }\n  return Math.abs(h).toString(16).padStart(8, '0');\n}\n\nconst expected = simpleHash(hash + 'dev-secret');\n\nif (token !== expected) {\n  return [{ json: { valid: false, reason: 'Invalid token' } }];\n}\n\nreturn [{ json: { valid: true, hash, action } }];"
+      },
+      "id": "791802ce-c69e-48fd-80e8-40dda1212124",
+      "name": "Validate Approval Token1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-approve",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1978eb0a-10b5-4059-ab58-91b232597afc",
+      "name": "Approve or Reject?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2192,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE pipeline_memory \nSET status = '{{ $json.action }}', outcome_at = NOW()\nWHERE hash = '{{ $json.hash }}';\n\nINSERT INTO pipeline_audit (hash, action, actioned_at)\nVALUES ('{{ $json.hash }}', '{{ $json.action }}', NOW())\nON CONFLICT DO NOTHING;",
+        "options": {}
+      },
+      "id": "30098026-0e90-43e9-9b17-139665fd842e",
+      "name": "Update Status + Audit Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2464,
+        1808
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "AsKIkXNRo9n27gws",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=✅ Decision recorded: {{ $json.action }}. Pipeline updated.",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html"
+              }
+            ]
+          }
+        }
+      },
+      "id": "0f006f05-d135-4af8-9d28-197692ae2c41",
+      "name": "Respond: Decision Recorded",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2704,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\n\n// Build a professional image prompt from the post content\n// const visualPrompt = `Professional LinkedIn post stat card, dark navy background, clean minimal design, large white bold text showing key insight from: ${item.title}. Modern data visualization style, single accent color electric blue, no stock photos, no people, corporate professional aesthetic, square format 1:1`;\n\nconst visualPrompt = `Professional LinkedIn post stat card, ${item.title}`;\n\n// using Pollinations.ai\nconst encodedPrompt = encodeURIComponent(visualPrompt);\nconst imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;\n\nconsole.log('[Pipeline] Visual URL generated');\n\nreturn [{ json: { \n  ...item, \n  imageUrl,\n  visualPrompt \n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3008,
+        1248
+      ],
+      "id": "5d66cd14-c1e9-4673-bd0c-813027fce684",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini: Draft Post",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Init Run1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Run1": {
+      "main": [
+        [
+          {
+            "node": "Fetch Earnings RSS1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Regulatory RSS1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Earnings RSS1": {
+      "main": [
+        [
+          {
+            "node": "Parse Earnings Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Regulatory RSS1": {
+      "main": [
+        [
+          {
+            "node": "Parse Regulatory Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Earnings Items1": {
+      "main": [
+        [
+          {
+            "node": "Merge and Hash Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Regulatory Items1": {
+      "main": [
+        [
+          {
+            "node": "Merge and Hash Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge and Hash Items1": {
+      "main": [
+        [
+          {
+            "node": "Check Memory (Postgres)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Memory (Postgres)1": {
+      "main": [
+        [
+          {
+            "node": "Filter Duplicates1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Duplicates1": {
+      "main": [
+        [
+          {
+            "node": "Inject Brand DNA1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inject Brand DNA1": {
+      "main": [
+        [
+          {
+            "node": "Gemini: Draft Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: Draft Post": {
+      "main": [
+        [
+          {
+            "node": "Extract Post Text1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Post Text1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Approval Notification1": {
+      "main": [
+        [
+          {
+            "node": "Memory: Mark Pending1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gmail: Send Preview1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory: Mark Pending1": {
+      "main": [
+        [
+          {
+            "node": "Slack: Approval Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Approval Gate1": {
+      "main": [
+        [
+          {
+            "node": "Validate Approval Token1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Approval Token1": {
+      "main": [
+        [
+          {
+            "node": "Approve or Reject?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approve or Reject?1": {
+      "main": [
+        [
+          {
+            "node": "Update Status + Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Status + Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status + Audit Log": {
+      "main": [
+        [
+          {
+            "node": "Respond: Decision Recorded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack: Approval Card": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Build Approval Notification1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "aQ4pRJ43HvubpN2W",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "3342d570-c954-431d-a787-b81105d75720",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0f07ac9dd38414895ff9b2677eb3473800369330d6fcada6ff2b29726df910b1"
+  },
+  "nodeGroups": [],
+  "id": "SkUAnXnyWZSLT87x",
+  "tags": []
+}
