@@ -96,7 +96,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1360,
+        1328,
         1104
       ]
     },
@@ -109,7 +109,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1360,
+        1328,
         1376
       ]
     },
@@ -122,7 +122,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1584,
+        1568,
         1248
       ]
     },
@@ -137,7 +137,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1824,
+        1792,
         1248
       ],
       "alwaysOutputData": true,
@@ -158,7 +158,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2064,
+        2048,
         1248
       ]
     },
@@ -171,7 +171,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2304,
+        2288,
         1248
       ]
     },
@@ -188,7 +188,7 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        2544,
+        2512,
         1248
       ],
       "retryOnFail": true,
@@ -203,8 +203,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        2544,
-        1440
+        2512,
+        1472
       ],
       "credentials": {
         "googlePalmApi": {
@@ -222,7 +222,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2832,
+        2848,
         1248
       ]
     },
@@ -233,7 +233,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3008,
+        3056,
         1248
       ],
       "id": "5d66cd14-c1e9-4673-bd0c-813027fce684",
@@ -248,7 +248,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3200,
+        3264,
         1248
       ]
     },
@@ -268,8 +268,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.5,
       "position": [
-        3632,
-        1136
+        3664,
+        1088
       ],
       "webhookId": "80543779-fc27-41b8-a5b8-df407f81932c",
       "credentials": {
@@ -290,8 +290,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        3424,
-        1136
+        3456,
+        1088
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -313,8 +313,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        3424,
-        1360
+        3456,
+        1408
       ],
       "webhookId": "8ec9389c-441f-4caa-97de-84ee9bbc79fa",
       "credentials": {
@@ -360,7 +360,7 @@
             "caseSensitive": true,
             "leftValue": "",
             "typeValidation": "strict",
-            "version": 1
+            "version": 2
           },
           "conditions": [
             {
@@ -383,30 +383,6 @@
       "typeVersion": 2.2,
       "position": [
         1520,
-        1936
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "text",
-        "responseBody": "=✅ Decision recorded: {{ $json.action }}. Pipeline updated.",
-        "options": {
-          "responseHeaders": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "text/html"
-              }
-            ]
-          }
-        }
-      },
-      "id": "0f006f05-d135-4af8-9d28-197692ae2c41",
-      "name": "Swnd Response",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [
-        2032,
         1936
       ]
     },
@@ -512,8 +488,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1360,
-        912
+        1328,
+        928
       ]
     },
     {
@@ -525,8 +501,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1360,
-        1568
+        1312,
+        1584
       ]
     },
     {
@@ -555,6 +531,30 @@
           "name": "Slack account"
         }
       }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=✅ Decision recorded: {{ $json.action }}. Pipeline updated.",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html"
+              }
+            ]
+          }
+        }
+      },
+      "id": "0f006f05-d135-4af8-9d28-197692ae2c41",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2032,
+        1936
+      ]
     }
   ],
   "pinData": {},
@@ -563,7 +563,7 @@
       "main": [
         [
           {
-            "node": "Swnd Response",
+            "node": "Send Response",
             "type": "main",
             "index": 0
           }
@@ -801,17 +801,6 @@
         ]
       ]
     },
-    "Swnd Response": {
-      "main": [
-        [
-          {
-            "node": "If Approved",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "If Approved": {
       "main": [
         [
@@ -855,6 +844,17 @@
           }
         ]
       ]
+    },
+    "Send Response": {
+      "main": [
+        [
+          {
+            "node": "If Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -866,7 +866,7 @@
     "errorWorkflow": "aQ4pRJ43HvubpN2W",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "0ae08204-0c21-4349-863a-e85031f86e65",
+  "versionId": "c7c1bfe9-69d2-4dd7-9723-2b39faedab3d",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0f07ac9dd38414895ff9b2677eb3473800369330d6fcada6ff2b29726df910b1"
