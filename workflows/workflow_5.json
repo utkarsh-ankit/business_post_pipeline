@@ -528,6 +528,33 @@
         1360,
         1568
       ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#new-posts",
+          "mode": "name"
+        },
+        "text": "Success! The approved post is now live on LinkedIn.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        3200,
+        1840
+      ],
+      "id": "16b86e84-e7b3-45d2-af40-c41903e74812",
+      "name": "Post Notification",
+      "webhookId": "8be5b4fe-2298-458b-a03e-0c8e5149e8f0",
+      "credentials": {
+        "slackApi": {
+          "id": "v3nBJd8lilh7yOvZ",
+          "name": "Slack account"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -817,6 +844,17 @@
           }
         ]
       ]
+    },
+    "Post on LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Post Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -828,7 +866,7 @@
     "errorWorkflow": "aQ4pRJ43HvubpN2W",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "524139e2-90b6-45bf-b022-cd2c6054554b",
+  "versionId": "0ae08204-0c21-4349-863a-e85031f86e65",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0f07ac9dd38414895ff9b2677eb3473800369330d6fcada6ff2b29726df910b1"
